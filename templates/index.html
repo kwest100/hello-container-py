@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask Calculator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f7f6;
+        }
+        .calculator {
+            background-color: #333;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            width: 320px;
+        }
+        #display {
+            width: 100%;
+            height: 60px;
+            font-size: 32px;
+            text-align: right;
+            margin-bottom: 20px;
+            padding: 10px;
+            box-sizing: border-box;
+            border: none;
+            background-color: #333;
+            color: white;
+            border-radius: 10px;
+        }
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+        button {
+            height: 60px;
+            font-size: 20px;
+            border: none;
+            border-radius: 30px;
+            background-color: #555;
+            color: white;
+            cursor: pointer;
+            transition: filter 0.2s;
+        }
+        button:hover {
+            filter: brightness(1.2);
+        }
+        button.operator {
+            background-color: #ff9500;
+        }
+        button.equal {
+            background-color: #ff9500;
+        }
+        button.clear {
+            background-color: #a5a5a5;
+            color: black;
+        }
+        button.zero {
+            grid-column: span 2;
+            border-radius: 30px;
+            text-align: left;
+            padding-left: 25px;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <input type="text" id="display" disabled value="0">
+        <div class="buttons">
+            <button class="clear" onclick="clearDisplay()">AC</button>
+            <button class="clear" onclick="toggleSign()">+/-</button>
+            <button class="clear" onclick="percent()">%</button>
+            <button class="operator" onclick="setOperation('/')">÷</button>
+
+            <button onclick="appendNumber('7')">7</button>
+            <button onclick="appendNumber('8')">8</button>
+            <button onclick="appendNumber('9')">9</button>
+            <button class="operator" onclick="setOperation('*')">×</button>
+
+            <button onclick="appendNumber('4')">4</button>
+            <button onclick="appendNumber('5')">5</button>
+            <button onclick="appendNumber('6')">6</button>
+            <button class="operator" onclick="setOperation('-')">−</button>
+
+            <button onclick="appendNumber('1')">1</button>
+            <button onclick="appendNumber('2')">2</button>
+            <button onclick="appendNumber('3')">3</button>
+            <button class="operator" onclick="setOperation('+')">+</button>
+
+            <button class="zero" onclick="appendNumber('0')">0</button>
+            <button onclick="appendDecimal()">.</button>
+            <button class="equal" onclick="handleEqual()">=</button>
+        </div>
+    </div>
+
+    <script>
+        let currentInput = '0';
+        let previousInput = null;
+        let operation = null;
+        let shouldResetScreen = false;
+        const display = document.getElementById('display');
+
+        function appendNumber(number) {
+            if (currentInput === '0' || shouldResetScreen) {
+                currentInput = number;
+                shouldResetScreen = false;
+            } else {
+                currentInput += number;
+            }
+            updateDisplay();
+        }
+
+        function appendDecimal() {
+            if (shouldResetScreen) {
+                currentInput = '0.';
+                shouldResetScreen = false;
+                updateDisplay();
+                return;
+            }
+            if (!currentInput.includes('.')) {
+                currentInput += '.';
+                updateDisplay();
+            }
+        }
+
+        function updateDisplay() {
+            display.value = currentInput;
+        }
+
+        function clearDisplay() {
+            currentInput = '0';
+            previousInput = null;
+            operation = null;
+            shouldResetScreen = false;
+            updateDisplay();
+        }
+
+        function toggleSign() {
+            currentInput = (parseFloat(currentInput) * -1).toString();
+            updateDisplay();
+        }
+
+        function percent() {
+            currentInput = (parseFloat(currentInput) / 100).toString();
+            updateDisplay();
+        }
+
+        async function setOperation(op) {
+            if (operation !== null && !shouldResetScreen) {
+                await calculate();
+            }
+            previousInput = currentInput;
+            operation = op;
+            shouldResetScreen = true;
+        }
+
+        async function handleEqual() {
+            if (operation === null || shouldResetScreen) return;
+            await calculate();
+            operation = null;
+        }
+
+        async function calculate() {
+            if (operation === null || previousInput === null) return;
+
+            try {
+                const response = await fetch('/calculate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        num1: previousInput,
+                        num2: currentInput,
+                        operation: operation
+                    }),
+                });
+
+                const data = await response.json();
+                if (data.result !== undefined) {
+                    currentInput = data.result.toString();
+                    updateDisplay();
+                    shouldResetScreen = true;
+                    previousInput = currentInput;
+                } else if (data.error) {
+                    alert(data.error);
+                    clearDisplay();
+                }
+            } catch (error) {
+                console.error('Error during calculation:', error);
+                alert('An error occurred during calculation.');
+            }
+        }
+    </script>
+</body>
+</html>
